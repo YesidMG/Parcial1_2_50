@@ -1,0 +1,49 @@
+version: "3.8"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - appnet
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/code
+      - ./booking_store.json:/code/booking_store.json
+    depends_on:
+      - rabbitmq
+    networks:
+      - appnet
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    command: python worker/worker.py
+    volumes:
+      - ./booking_store.json:/code/booking_store.json
+    depends_on:
+      - rabbitmq
+    networks:
+      - appnet
+
+  notify:
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    command: python consumer/consumer.py
+    depends_on:
+      - rabbitmq
+    networks:
+      - appnet
+
+networks:
+  appnet:
